@@ -175,6 +175,16 @@ namespace aluspointer
         send_fake_input(XCB_KEY_RELEASE, keycode);
     }
     
+    void tap_key(key_type type)
+    {
+        auto keycode = get_keycode(type);
+        
+        press_key(keycode, MOD_NONE);
+        release_key(keycode, MOD_NONE);
+        
+        flush();
+    }
+    
     void tap_key(char ascii)
     {
         int flags = MOD_NONE;

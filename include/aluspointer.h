@@ -21,9 +21,18 @@ namespace aluspointer
         MOD_CTRL            = 0x04
     };
     
+    enum key_type : xcb_keysym_t
+    {
+        XK_Left             = 0xff51,
+        XK_Up               = 0xff52,
+        XK_Right            = 0xff53,
+        XK_Down             = 0xff54
+    };
+    
     void initialize();
     
     // Keyboard Control
+    void tap_key(key_type /*type*/);
     void tap_key(char /*ascii*/);
     void tap_key_in_utf8(char32_t /*codepoint*/);
     void type_string(const tiny_utf8::string& /*str*/);
