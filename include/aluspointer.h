@@ -39,6 +39,7 @@ namespace aluspointer
     
     // Mouse Control
     void move_mouse(int /*x*/, int /*y*/);
+    void move_mouse_to(int /*x*/, int /*y*/);
     void press_mouse(mouse_btn_type /*type*/);
     void release_mouse(mouse_btn_type /*type*/);
     void click(mouse_btn_type /*type*/);

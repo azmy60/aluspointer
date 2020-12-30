@@ -249,6 +249,12 @@ namespace aluspointer
         flush();        
     }
     
+    void move_mouse_to(int x, int y)
+    {
+        xcb_test_fake_input(connection, XCB_MOTION_NOTIFY, 0, XCB_CURRENT_TIME, XCB_NONE, x, y, 0);
+        flush();        
+    }
+    
     inline void fake_mouse(uint8_t state, uint8_t index)
     {
         xcb_test_fake_input(connection, state, index, XCB_CURRENT_TIME, XCB_NONE, 0, 0, 0);
