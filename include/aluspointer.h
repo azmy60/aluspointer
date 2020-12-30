@@ -9,8 +9,8 @@ namespace aluspointer
     enum mouse_btn_type
     {
         MOUSE_LEFT          = XCB_BUTTON_INDEX_1,
-        MOUSE_RIGHT         = XCB_BUTTON_INDEX_2,
-        MOUSE_MIDDLE        = XCB_BUTTON_INDEX_3
+        MOUSE_RIGHT         = XCB_BUTTON_INDEX_3,
+        MOUSE_MIDDLE        = XCB_BUTTON_INDEX_2
     };
     
     enum flags_type
