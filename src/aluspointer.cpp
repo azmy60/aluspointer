@@ -72,7 +72,7 @@ namespace aluspointer
     }
     */
     
-    xcb_screen_t *screen_of_display(xcb_connection_t *c, int screen)
+    inline xcb_screen_t *screen_of_display(xcb_connection_t *c, int screen)
     {
         for (auto it = xcb_setup_roots_iterator(xcb_get_setup(c)); 
             it.rem;
