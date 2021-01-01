@@ -1,9 +1,9 @@
 #include "aluspointer.h"
 #include "util.h"
+#include "common.h"
 #include <memory>
 #include <iostream>
 #include <algorithm>
-#include <xcb/xcb.h>
 #include <xcb/xtest.h>
 
 // TODO use enum
@@ -28,32 +28,18 @@ namespace aluspointer
         }
     };
     
-    template<typename T>
-    struct ReplyDeleter
-    {
-        void operator()(T* p) const
-        {
-            if(p) free(p);
-        }
-    };
-    
     /*
     using keysyms_ptr = std::unique_ptr<xcb_keysym_t[]>;
     using keymap_reply_ptr = std::unique_ptr<xcb_get_keyboard_mapping_reply_t>;
     using setup_ptr = std::unique_ptr<const xcb_setup_t>;
     */
     using connection_ptr = std::unique_ptr<xcb_connection_t, ConnectionDeleter>;
-    using screen_ptr = std::unique_ptr<xcb_screen_t>;
     using key_symbols_ptr = std::unique_ptr<xcb_key_symbols_t, KeySymbolsDeleter>;
-    template<typename T> using reply_ptr = std::unique_ptr<T, ReplyDeleter<T>>;
     
     connection_ptr scoped_connection;
-    screen_ptr screen;
     key_symbols_ptr key_symbols;
     
     int n_screen_default;
-    xcb_connection_t *connection;
-    xcb_atom_t _NET_CLIENT_LIST;
     
     /*
     setup_ptr setup;
@@ -89,15 +75,6 @@ namespace aluspointer
             if (screen == 0)
                 return screen_ptr(it.data);
         return nullptr;
-    }
-    
-    inline xcb_atom_t locate_atom(std::string name)
-    {
-        auto cookie = xcb_intern_atom(connection, 1, name.size(), name.c_str());
-        auto reply = reply_ptr<xcb_intern_atom_reply_t>
-            (xcb_intern_atom_reply(connection, cookie, nullptr));
-        if(!reply) return 0;
-        return reply->atom;
     }
     
     void initialize()
@@ -310,90 +287,6 @@ namespace aluspointer
         fake_mouse(XCB_BUTTON_PRESS, XCB_BUTTON_INDEX_5);
         fake_mouse(XCB_BUTTON_RELEASE, XCB_BUTTON_INDEX_5);
         flush();
-    }
-    
-    int get_atom_value(xcb_window_t wid, xcb_atom_t property, xcb_atom_t value, 
-    uint32_t long_len, void **data)
-    {
-        auto cookie = xcb_get_property(connection, 0, wid, XCB_ATOM_WM_NAME, 
-                                        XCB_ATOM_STRING, 0, 100);
-        auto reply = xcb_get_property_reply(connection, cookie, nullptr);
-
-        if(!reply)
-            return 0;
-        
-        *data = xcb_get_property_value(reply);
-
-        int len = xcb_get_property_value_length(reply);
-        
-        free(reply);
-        
-        return len;
-    }
-    
-    inline std::string get_name(xcb_window_t wid)
-    {
-        char *c_name;
-        int len = get_atom_value(wid, XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 100, 
-                                (void**)&c_name);
-        if(!len)
-        {
-            // TODO get the atom with COMPOUND_TEXT value type
-        }
-        return std::string(c_name, len);
-    }
-    
-    std::vector<std::string> get_windows_names_from_root()
-    {
-        // This is just my unreliable theory:
-        // In order to -get all the windows- that exists on screen, we find the root
-        // window from a screen first. The root window have a bunch of window
-        // children. These children are what we are going to use.
-        //
-        // We iterate through the children, and then check the map_state if it's
-        // viewable or not. If it is, then that is the window on screen.
-        // 
-        // I found 2 ways to get the list of these happy little windows.
-        //
-        // The first one is with xcb_query_tree_children. Using this in my laptop
-        // gave me a list of about a hundred windows (or maybe even more).
-        // 
-        // The other way is by getting a specific value from the properties of a 
-        // window (in this case is the root window). With this, i was given 2-3x
-        // smaller list of windows. You still have to filter it, but with less
-        // itteration, which is better.
-
-        std::vector<std::string> names;
-
-        auto prop_cookie = xcb_get_property(connection, 0, screen->root, _NET_CLIENT_LIST, XCB_ATOM_WINDOW, 0, 100);
-        auto prop_reply = xcb_get_property_reply(connection, prop_cookie, nullptr);
-        if(!prop_reply)
-            return names;
-        
-        auto prop_reply_scoped = reply_ptr<xcb_get_property_reply_t>(prop_reply);
-        
-        auto window_list_len = xcb_get_property_value_length(prop_reply);
-        xcb_window_t *window_list = (xcb_window_t *)xcb_get_property_value(prop_reply);
-        
-        for(int i = 0; i < window_list_len; i++)
-        {
-            if(window_list[i] == 0)
-                continue;
-            try
-            {
-                auto attr_cookie = xcb_get_window_attributes(connection, window_list[i]);
-                auto attr_reply = reply_ptr<xcb_get_window_attributes_reply_t>
-                    (xcb_get_window_attributes_reply(connection, attr_cookie, nullptr));
-                
-                if(attr_reply && attr_reply->map_state == XCB_MAP_STATE_VIEWABLE)
-                    names.push_back(get_name(window_list[i]));
-            }
-            catch(...)
-            {
-            }
-        }
-        
-        return names;
     }
     
     /* Steps to type in unicode with keymapping:
