@@ -111,11 +111,6 @@ namespace aluspointer
         */
     }
     
-    inline void flush()
-    {
-        xcb_flush(connection);
-    }
-    
     // WARNING: flush manually.
     inline void send_fake_input(uint8_t type, xcb_keycode_t keycode)
     {

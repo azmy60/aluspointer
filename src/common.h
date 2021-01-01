@@ -23,6 +23,11 @@ namespace aluspointer
     extern xcb_connection_t *connection;
     extern screen_ptr screen;
     
+    inline void flush()
+    {
+        xcb_flush(connection);
+    }
+    
     extern xcb_atom_t _NET_CLIENT_LIST;
     
     xcb_atom_t locate_atom(std::string name);
