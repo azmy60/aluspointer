@@ -1,6 +1,7 @@
 #ifndef ALUSPOINTER_H
 #define ALUSPOINTER_H
 
+#include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
 #include <tinyutf8/tinyutf8.h>
 #include <string>
@@ -50,7 +51,15 @@ namespace aluspointer
     void wheel_down();
     
     // Window Management
-    std::vector<std::string> get_windows_names_from_root();
+    struct window_info
+    {
+        xcb_window_t wid;
+        std::string name;
+        // TODO screenshot of the window
+    };
+    
+    std::vector<std::string> update_window_list();
+    void focus_window(uint8_t id);
 }
 
 #endif // ALUSPOINTER_H

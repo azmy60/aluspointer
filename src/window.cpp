@@ -1,7 +1,8 @@
 #include "aluspointer.h"
 #include "common.h"
+#include <unordered_map>
 
-namespace aluspointer
+namespace aluspointer // FIX free() invalid pointer when program terminates 
 {
     xcb_atom_t _NET_CLIENT_LIST;
     
@@ -36,7 +37,11 @@ namespace aluspointer
         return std::string(c_name, len);
     }
     
-    std::vector<std::string> get_windows_names_from_root()
+    std::unordered_map<uint8_t, xcb_window_t> id_to_wid_mapper;
+    std::unordered_map<xcb_window_t, std::unique_ptr<window_info>> window_info_container;
+    
+    // TODO not thread-safe
+    std::vector<std::string> update_window_list()
     {
         // This is just my unreliable theory:
         // In order to -get all the windows- that exists on screen, we find the root
@@ -57,6 +62,9 @@ namespace aluspointer
         // itteration, which is better.
 
         std::vector<std::string> names;
+        
+        id_to_wid_mapper.clear();
+        window_info_container.clear();
 
         auto prop_cookie = xcb_get_property(connection, 0, screen->root, _NET_CLIENT_LIST, XCB_ATOM_WINDOW, 0, 100);
         auto prop_reply = xcb_get_property_reply(connection, prop_cookie, nullptr);
@@ -68,6 +76,7 @@ namespace aluspointer
         auto window_list_len = xcb_get_property_value_length(prop_reply);
         xcb_window_t *window_list = (xcb_window_t *)xcb_get_property_value(prop_reply);
         
+        uint8_t id = 0;
         for(int i = 0; i < window_list_len; i++)
         {
             if(window_list[i] == 0)
@@ -79,7 +88,22 @@ namespace aluspointer
                     (xcb_get_window_attributes_reply(connection, attr_cookie, nullptr));
                 
                 if(attr_reply && attr_reply->map_state == XCB_MAP_STATE_VIEWABLE)
-                    names.push_back(get_name(window_list[i]));
+                {
+                    auto name = get_name(window_list[i]);
+                    
+                    names.push_back(name);
+                    
+                    auto info = std::make_unique<window_info>();
+                    
+                    info->wid = window_list[i];
+                    info->name = name;
+                    
+                    window_info_container[window_list[i]] = std::move(info);
+                    
+                    id_to_wid_mapper[id] = window_list[i];
+                    
+                    id++;
+                }
             }
             catch(...)
             {
@@ -87,5 +111,10 @@ namespace aluspointer
         }
         
         return names;
+    }
+    
+    void focus_window(uint8_t id)
+    {
+        // TODO
     }
 }
