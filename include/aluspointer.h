@@ -3,6 +3,8 @@
 
 #include <xcb/xcb_keysyms.h>
 #include <tinyutf8/tinyutf8.h>
+#include <string>
+#include <vector>
 
 namespace aluspointer
 {
@@ -45,6 +47,9 @@ namespace aluspointer
     void click(mouse_btn_type /*type*/);
     void wheel_up();
     void wheel_down();
+    
+    // Window Management
+    std::vector<std::string> get_windows_names_from_root();
 }
 
 #endif // ALUSPOINTER_H
