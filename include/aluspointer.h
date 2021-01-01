@@ -31,6 +31,7 @@ namespace aluspointer
         XK_Down             = 0xff54
     };
     
+    // Call this before everything
     void initialize();
     
     // Keyboard Control
