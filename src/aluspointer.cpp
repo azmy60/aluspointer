@@ -82,15 +82,15 @@ namespace aluspointer
     }
     */
     
-    inline xcb_screen_t *screen_of_display(xcb_connection_t *c, int screen)
+    inline screen_ptr screen_of_display(xcb_connection_t *c, int screen)
     {
-        for (auto it = xcb_setup_roots_iterator(xcb_get_setup(c)); 
+        for (auto it = xcb_setup_roots_iterator(xcb_get_setup(c));
             it.rem;
             --screen, xcb_screen_next(&it))
             if (screen == 0)
-                return it.data;
-
-        return NULL;
+                return screen_ptr(it.data);
+        return nullptr;
+    }
     }
     
     void initialize()
@@ -103,7 +103,7 @@ namespace aluspointer
         }
         scoped_connection = connection_ptr(connection);
         
-        screen = screen_ptr(screen_of_display(connection, n_screen_default));
+        screen = screen_of_display(connection, n_screen_default);
         if(!screen)
         {
             std::cerr << "Unable to get default screen.\n";
