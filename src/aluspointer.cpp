@@ -15,17 +15,17 @@ namespace aluspointer
 {
     struct ConnectionDeleter
     {
-        void operator()(xcb_connection_t *c) const
+        void operator()(xcb_connection_t *p) const
         {
-            xcb_disconnect(c);
+            if(p) xcb_disconnect(p);
         }
     };
     
     struct KeySymbolsDeleter
     {
-        void operator()(xcb_key_symbols_t *syms_) const
+        void operator()(xcb_key_symbols_t *p) const
         {
-            xcb_key_symbols_free(syms_);
+            if(p) xcb_key_symbols_free(p);
         }
     };
     
