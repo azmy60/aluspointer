@@ -92,11 +92,12 @@ namespace aluspointer
         return nullptr;
     }
     
-    inline xcb_atom_t locate_atom(char *name, int name_len)
+    inline xcb_atom_t locate_atom(std::string name)
     {
-        auto cookie = xcb_intern_atom(connection, 1, len, name);
-        auto reply = reply_ptr<atom_reply>(xcb_intern_atom_reply(connection, cookie, nullptr));
-        if(!reply) return NULL;
+        auto cookie = xcb_intern_atom(connection, 1, name.size(), name.c_str());
+        auto reply = reply_ptr<xcb_intern_atom_reply_t>
+            (xcb_intern_atom_reply(connection, cookie, nullptr));
+        if(!reply) return 0;
         return reply->atom;
     }
     
@@ -119,7 +120,7 @@ namespace aluspointer
         
         key_symbols = key_symbols_ptr(xcb_key_symbols_alloc(connection));
         
-        _NET_CLIENT_LIST = locate_atom("_NET_CLIENT_LIST", 16);
+        _NET_CLIENT_LIST = locate_atom("_NET_CLIENT_LIST");
         
         /*
         setup = setup_ptr(xcb_get_setup(connection));
