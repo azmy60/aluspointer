@@ -91,6 +91,13 @@ namespace aluspointer
                 return screen_ptr(it.data);
         return nullptr;
     }
+    
+    inline xcb_atom_t locate_atom(char *name, int name_len)
+    {
+        auto cookie = xcb_intern_atom(connection, 1, len, name);
+        auto reply = reply_ptr<atom_reply>(xcb_intern_atom_reply(connection, cookie, nullptr));
+        if(!reply) return NULL;
+        return reply->atom;
     }
     
     void initialize()
@@ -108,7 +115,7 @@ namespace aluspointer
         {
             std::cerr << "Unable to get default screen.\n";
             throw INIT_SCREEN_ERR;
-        } 
+        }
         
         key_symbols = key_symbols_ptr(xcb_key_symbols_alloc(connection));
         
