@@ -29,6 +29,15 @@ namespace aluspointer
         }
     };
     
+    template<typename T>
+    struct ReplyDeleter
+    {
+        void operator()(T* p) const
+        {
+            if(p) free(p);
+        }
+    }
+    
     /*
     using keysyms_ptr = std::unique_ptr<xcb_keysym_t[]>;
     using keymap_reply_ptr = std::unique_ptr<xcb_get_keyboard_mapping_reply_t>;
@@ -36,6 +45,7 @@ namespace aluspointer
     */
     using connection_ptr = std::unique_ptr<xcb_connection_t, ConnectionDeleter>;
     using screen_ptr = std::unique_ptr<xcb_screen_t>;
+    using reply_ptr = template<typename T> std::unique_ptr<T, ReplyDeleter<T>>;
     using key_symbols_ptr = std::unique_ptr<xcb_key_symbols_t, KeySymbolsDeleter>;
     
     connection_ptr scoped_connection;
