@@ -54,7 +54,7 @@ namespace aluspointer
     
     int n_screen_default;
     xcb_connection_t *connection;
-    
+    xcb_atom_t _NET_CLIENT_LIST;
     
     /*
     setup_ptr setup;
@@ -118,6 +118,8 @@ namespace aluspointer
         }
         
         key_symbols = key_symbols_ptr(xcb_key_symbols_alloc(connection));
+        
+        _NET_CLIENT_LIST = locate_atom("_NET_CLIENT_LIST", 16);
         
         /*
         setup = setup_ptr(xcb_get_setup(connection));
@@ -309,7 +311,6 @@ namespace aluspointer
         fake_mouse(XCB_BUTTON_RELEASE, XCB_BUTTON_INDEX_5);
         flush();
     }
-    
     
     /* Steps to type in unicode with keymapping:
      * 1) Get the keyboard mapping.
