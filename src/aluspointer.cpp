@@ -36,7 +36,7 @@ namespace aluspointer
         {
             if(p) free(p);
         }
-    }
+    };
     
     /*
     using keysyms_ptr = std::unique_ptr<xcb_keysym_t[]>;
@@ -45,8 +45,8 @@ namespace aluspointer
     */
     using connection_ptr = std::unique_ptr<xcb_connection_t, ConnectionDeleter>;
     using screen_ptr = std::unique_ptr<xcb_screen_t>;
-    using reply_ptr = template<typename T> std::unique_ptr<T, ReplyDeleter<T>>;
     using key_symbols_ptr = std::unique_ptr<xcb_key_symbols_t, KeySymbolsDeleter>;
+    template<typename T> using reply_ptr = std::unique_ptr<T, ReplyDeleter<T>>;
     
     connection_ptr scoped_connection;
     screen_ptr screen;
