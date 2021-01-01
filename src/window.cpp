@@ -3,15 +3,6 @@
 
 namespace aluspointer
 {
-    inline xcb_atom_t locate_atom(std::string name)
-    {
-        auto cookie = xcb_intern_atom(connection, 1, name.size(), name.c_str());
-        auto reply = reply_ptr<xcb_intern_atom_reply_t>
-            (xcb_intern_atom_reply(connection, cookie, nullptr));
-        if(!reply) return 0;
-        return reply->atom;
-    }
-    
     int get_atom_value(xcb_window_t wid, xcb_atom_t property, xcb_atom_t value, 
     uint32_t long_len, void **data)
     {

@@ -3,6 +3,7 @@
 
 #include <xcb/xcb.h>
 #include <memory>
+#include <string>
 
 namespace aluspointer
 {
