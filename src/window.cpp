@@ -114,9 +114,17 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
         return names;
     }
     
+    // https://stackoverflow.com/a/54382231/10012118
     void focus_wid(xcb_window_t wid)
     {
-        // TODO
+        uint32_t val[] = { XCB_STACK_MODE_ABOVE };
+        
+        xcb_configure_window(connection, wid, XCB_CONFIG_WINDOW_STACK_MODE, val);
+
+        xcb_set_input_focus(connection, XCB_INPUT_FOCUS_POINTER_ROOT, wid, 
+            XCB_CURRENT_TIME);
+        
+        flush();
     }
     
     void focus_window(uint8_t id)
