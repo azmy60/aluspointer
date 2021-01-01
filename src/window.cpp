@@ -3,6 +3,8 @@
 
 namespace aluspointer
 {
+    xcb_atom_t _NET_CLIENT_LIST;
+    
     int get_atom_value(xcb_window_t wid, xcb_atom_t property, xcb_atom_t value, 
     uint32_t long_len, void **data)
     {

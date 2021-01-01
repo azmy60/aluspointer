@@ -37,9 +37,11 @@ namespace aluspointer
     using key_symbols_ptr = std::unique_ptr<xcb_key_symbols_t, KeySymbolsDeleter>;
     
     connection_ptr scoped_connection;
+    screen_ptr screen;
     key_symbols_ptr key_symbols;
     
     int n_screen_default;
+    xcb_connection_t *connection;
     
     /*
     setup_ptr setup;
