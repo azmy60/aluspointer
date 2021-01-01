@@ -1,6 +1,7 @@
 #include "aluspointer.h"
 #include "common.h"
 #include <unordered_map>
+#include <stdexcept> 
 
 namespace aluspointer // FIX free() invalid pointer when program terminates 
 {
@@ -113,8 +114,19 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
         return names;
     }
     
-    void focus_window(uint8_t id)
+    void focus_wid(xcb_window_t wid)
     {
         // TODO
+    }
+    
+    void focus_window(uint8_t id)
+    {
+        try
+        {
+            focus_wid(id_to_wid_mapper.at(id));
+        }
+        catch(const std::out_of_range &oor)
+        {
+        }
     }
 }
