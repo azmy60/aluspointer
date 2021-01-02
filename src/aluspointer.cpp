@@ -37,7 +37,7 @@ namespace aluspointer
     using key_symbols_ptr = std::unique_ptr<xcb_key_symbols_t, KeySymbolsDeleter>;
     
     connection_ptr scoped_connection;
-    screen_ptr screen;
+    xcb_screen_t *screen;
     key_symbols_ptr key_symbols;
     
     int n_screen_default;
@@ -69,13 +69,13 @@ namespace aluspointer
     }
     */
     
-    inline screen_ptr screen_of_display(xcb_connection_t *c, int screen)
+    inline xcb_screen_t *screen_of_display(xcb_connection_t *c, int screen)
     {
         for (auto it = xcb_setup_roots_iterator(xcb_get_setup(c));
             it.rem;
             --screen, xcb_screen_next(&it))
             if (screen == 0)
-                return screen_ptr(it.data);
+                return it.data;
         return nullptr;
     }
     

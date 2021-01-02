@@ -18,10 +18,9 @@ namespace aluspointer
     
     template<typename T>
     using reply_ptr = std::unique_ptr<T, ReplyDeleter<T>>;
-    using screen_ptr = std::unique_ptr<xcb_screen_t>;
-    
+
     extern xcb_connection_t *connection;
-    extern screen_ptr screen;
+    extern xcb_screen_t *screen;
     
     inline void flush()
     {
