@@ -10,8 +10,8 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
     int get_atom_value(xcb_window_t wid, xcb_atom_t property, xcb_atom_t value, 
     uint32_t long_len, void **data)
     {
-        auto cookie = xcb_get_property(connection, 0, wid, XCB_ATOM_WM_NAME, 
-                                        XCB_ATOM_STRING, 0, 100);
+        auto cookie = xcb_get_property(connection, 0, wid, property, 
+                                        value, 0, 100);
         auto reply = xcb_get_property_reply(connection, cookie, nullptr);
 
         if(!reply)
