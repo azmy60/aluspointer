@@ -51,14 +51,12 @@ namespace aluspointer
     void wheel_down();
     
     // Window Management
-    struct window_info
+    struct window_client_t
     {
-        xcb_window_t wid;
+        int id = 0;
         std::string name;
-        // TODO screenshot of the window
     };
-    
-    std::vector<std::string> update_window_list();
+    std::vector<window_client_t> update_window_list();
     void focus_window(uint8_t id);
 }
 

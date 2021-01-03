@@ -38,11 +38,48 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
         return std::string(c_name, len);
     }
     
-    std::unordered_map<uint8_t, xcb_window_t> id_to_wid_mapper;
-    std::unordered_map<xcb_window_t, std::unique_ptr<window_info>> window_info_container;
+    xcb_visualtype_t *lookup_visual(xcb_visualid_t visual_id)
+    {
+        auto depth_iter = xcb_screen_allowed_depths_iterator(screen);
+        for(; depth_iter.rem; xcb_depth_next(&depth_iter)){
+            auto visual_iter = xcb_depth_visuals_iterator(depth_iter.data);
+            for(; visual_iter.rem; xcb_visualtype_next(&visual_iter))
+                if(visual_id == visual_iter.data->visual_id)
+                    return visual_iter.data;
+        }
+        return nullptr;
+    }
+    
+    struct window_info_t
+    {
+        xcb_window_t wid;
+        std::string name;
+        xcb_visualtype_t *visual_type;
+    };
+    
+    std::unordered_map<uint8_t, std::shared_ptr<window_info_t>> window_info_mapper;
+    
+    inline xcb_get_property_reply_t *get_window_property_reply
+        (xcb_window_t wid, xcb_atom_t property, xcb_atom_t type)
+    {
+        return xcb_get_property_reply(connection, 
+            xcb_get_property(connection, 0, wid, property, type, 0, 100), 
+            nullptr);
+    }
+    
+    bool check_window(xcb_window_t wid, uint8_t map_state)
+    {
+        auto win_type_reply_scoped = reply_ptr<xcb_get_property_reply_t>
+            (get_window_property_reply(wid, _NET_WM_WINDOW_TYPE, XCB_ATOM_ATOM));
+        
+        auto win_type = (xcb_atom_t *)xcb_get_property_value(win_type_reply_scoped.get());
+        
+        return  map_state == XCB_MAP_STATE_VIEWABLE && 
+                (win_type && *win_type == _NET_WM_WINDOW_TYPE_NORMAL);
+    }
     
     // TODO not thread-safe
-    std::vector<std::string> update_window_list()
+    std::vector<window_client_t> update_window_list()
     {
         // This is just my unreliable theory:
         // In order to -get all the windows- that exists on screen, we find the root
@@ -62,15 +99,13 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
         // smaller list of windows. You still have to filter it, but with less
         // itteration, which is better.
 
-        std::vector<std::string> names;
+        std::vector<window_client_t> win_client_list; // TODO store this client list locally and return const to the user 
         
-        id_to_wid_mapper.clear();
-        window_info_container.clear();
+        window_info_mapper.clear();
 
-        auto prop_cookie = xcb_get_property(connection, 0, screen->root, _NET_CLIENT_LIST, XCB_ATOM_WINDOW, 0, 100);
-        auto prop_reply = xcb_get_property_reply(connection, prop_cookie, nullptr);
+        auto prop_reply = get_window_property_reply(screen->root, _NET_CLIENT_LIST, XCB_ATOM_WINDOW);
         if(!prop_reply)
-            return names;
+            return win_client_list;
         
         auto prop_reply_scoped = reply_ptr<xcb_get_property_reply_t>(prop_reply);
         
@@ -87,21 +122,21 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
                 auto attr_cookie = xcb_get_window_attributes(connection, window_list[i]);
                 auto attr_reply = reply_ptr<xcb_get_window_attributes_reply_t>
                     (xcb_get_window_attributes_reply(connection, attr_cookie, nullptr));
-                
-                if(attr_reply && attr_reply->map_state == XCB_MAP_STATE_VIEWABLE)
+                    
+                if(attr_reply && check_window(window_list[i], attr_reply->map_state))
                 {
                     auto name = get_name(window_list[i]);
                     
-                    names.push_back(name);
+                    auto win_client = window_client_t { id, name };
+                    win_client_list.push_back(win_client);
                     
-                    auto info = std::make_unique<window_info>();
+                    auto info = std::make_shared<window_info_t>();
                     
-                    info->wid = window_list[i];
-                    info->name = name;
+                    info->name        = name;
+                    info->wid         = window_list[i];
+                    info->visual_type = lookup_visual(attr_reply->visual);
                     
-                    window_info_container[window_list[i]] = std::move(info);
-                    
-                    id_to_wid_mapper[id] = window_list[i];
+                    window_info_mapper[id] = info;
                     
                     id++;
                 }
@@ -111,7 +146,7 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
             }
         }
         
-        return names;
+        return win_client_list;
     }
     
     // https://stackoverflow.com/a/54382231/10012118
@@ -131,7 +166,7 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
     {
         try
         {
-            focus_wid(id_to_wid_mapper.at(id));
+            focus_wid(window_info_mapper.at(id)->wid);
         }
         catch(const std::out_of_range &oor)
         {
