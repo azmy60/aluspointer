@@ -98,7 +98,9 @@ namespace aluspointer
         
         key_symbols = key_symbols_ptr(xcb_key_symbols_alloc(connection));
         
-        _NET_CLIENT_LIST = locate_atom("_NET_CLIENT_LIST");
+        _NET_CLIENT_LIST           = locate_atom("_NET_CLIENT_LIST");
+        _NET_WM_WINDOW_TYPE        = locate_atom("_NET_WM_WINDOW_TYPE");
+        _NET_WM_WINDOW_TYPE_NORMAL = locate_atom("_NET_WM_WINDOW_TYPE_NORMAL");
         
         /*
         setup = setup_ptr(xcb_get_setup(connection));
