@@ -4,6 +4,7 @@ aluspointer is an input simulation library written in c++ based on xcb library. 
 ### Features
 - Basic mouse and keyboard tasks (clicking, typing, etc.)
 - Supports UTF-8 characters typing
+- Window manipulation (focus & capture image)
 
 ### Dependencies
 - xcb, xcb-xtest, and xcb-keysyms
@@ -35,5 +36,5 @@ int main()
 ```
 
 ### TODO
-- Adds window management support. Such as activating, minimizing, capturing, and other actions on windows
+- Adds window management support. Such as activating, minimizing, capturing, and other actions
 - Windows and Mac support
