@@ -1,7 +1,8 @@
 #include "aluspointer.h"
 #include "common.h"
 #include <unordered_map>
-#include <stdexcept> 
+#include <stdexcept>
+#include <cairo-xcb.h>
 
 namespace aluspointer // FIX free() invalid pointer when program terminates 
 {
@@ -58,6 +59,43 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
     };
     
     std::unordered_map<uint8_t, std::shared_ptr<window_info_t>> window_info_mapper;
+    
+    // Reserves 170kb of memory
+    std::vector<unsigned char> bitmap_buffer_temp(1024 * 170); 
+    
+    static cairo_status_t write_data_png(void *closure, const unsigned char *data, 
+    unsigned int length)
+    {
+        auto p = (std::vector<unsigned char> *) closure;
+        p->insert(p->end(), data, data + length);
+        
+        return CAIRO_STATUS_SUCCESS;
+    }
+    
+    const std::vector<unsigned char> get_window_image(uint8_t id)
+    {
+        bitmap_buffer_temp.clear();
+        
+        auto info = window_info_mapper[id];
+        int absx, absy, width, height, x, y;
+
+        auto geo_cookie = xcb_get_geometry(connection, info->wid);
+        auto geo_reply = reply_ptr<xcb_get_geometry_reply_t>
+            (xcb_get_geometry_reply(connection, geo_cookie, nullptr));
+        
+        if(!geo_reply)
+            return bitmap_buffer_temp;
+            
+        auto surface = cairo_xcb_surface_create(connection, info->wid, 
+            info->visual_type, geo_reply->width, geo_reply->height);
+        
+        auto status = cairo_surface_write_to_png_stream(surface, write_data_png, 
+            &bitmap_buffer_temp); // TODO use external library for the write
+        
+        cairo_surface_destroy(surface);
+        
+        return bitmap_buffer_temp;
+    }
     
     inline xcb_get_property_reply_t *get_window_property_reply
         (xcb_window_t wid, xcb_atom_t property, xcb_atom_t type)
