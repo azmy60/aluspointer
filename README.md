@@ -9,6 +9,7 @@ aluspointer is an input simulation library written in c++ based on xcb library. 
 ### Dependencies
 - xcb, xcb-xtest, and xcb-keysyms
 - tinyutf8 (https://github.com/DuffsDevice/tiny-utf8)
+- cairo
 
 ### Usage
 ```C++
