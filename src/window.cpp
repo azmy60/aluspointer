@@ -98,14 +98,22 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
         return bitmap_buffer_temp;
     }
     
+    inline xcb_get_property_reply_t *get_window_property_reply
+        (xcb_window_t wid, xcb_atom_t property, xcb_atom_t type)
+    {
+        return xcb_get_property_reply(connection, 
+            xcb_get_property(connection, 0, wid, property, type, 0, 100), 
+            nullptr);
+    }
+    
     bool check_window(xcb_window_t wid, uint8_t map_state)
     {
-        xcb_atom_t *win_type = nullptr;
+        auto win_type_reply_scoped = reply_ptr<xcb_get_property_reply_t>
+            (get_window_property_reply(wid, _NET_WM_WINDOW_TYPE, XCB_ATOM_ATOM));
         
-        auto len = get_atom_value<xcb_atom_t *>(wid, _NET_WM_WINDOW_TYPE, 
-            XCB_ATOM_ATOM, UINT32_MAX, win_type);
+        auto win_type = (xcb_atom_t *)xcb_get_property_value(win_type_reply_scoped.get());
         
-        return map_state == XCB_MAP_STATE_VIEWABLE && 
+        return  map_state == XCB_MAP_STATE_VIEWABLE && 
                 (win_type && *win_type == _NET_WM_WINDOW_TYPE_NORMAL);
     }
     
@@ -116,15 +124,14 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
         
         window_info_mapper.clear();
         
-        xcb_window_t *window_list = nullptr;
-        
-        auto window_list_len = get_atom_value<xcb_window_t *>(screen->root, 
-            _NET_CLIENT_LIST, XCB_ATOM_WINDOW, UINT32_MAX, window_list);
-            
-        std::cout << window_list_len << std::endl;
-        
-        if(!window_list)
+        auto prop_reply = get_window_property_reply(screen->root, _NET_CLIENT_LIST, XCB_ATOM_WINDOW);
+        if(!prop_reply)
             return win_client_list;
+        
+        auto prop_reply_scoped = reply_ptr<xcb_get_property_reply_t>(prop_reply);
+        
+        auto window_list_len = xcb_get_property_value_length(prop_reply);
+        xcb_window_t *window_list = (xcb_window_t *)xcb_get_property_value(prop_reply);
         
         uint8_t id = 0;
         for(int i = 0; i < window_list_len; i++)
