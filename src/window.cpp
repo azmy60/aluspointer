@@ -9,11 +9,11 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
     xcb_atom_t _NET_CLIENT_LIST, _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_NORMAL;
     
     template <typename T>
-    int get_atom_value(xcb_window_t wid, xcb_atom_t property, xcb_atom_t value, 
+    int get_atom_value(xcb_window_t wid, xcb_atom_t property, xcb_atom_t type, 
     uint32_t long_len, T &data)
     {
         auto cookie = xcb_get_property(connection, 0, wid, property, 
-                                        value, 0, 100);
+                                        type, 0, long_len);
         auto reply = xcb_get_property_reply(connection, cookie, nullptr);
 
         if(!reply)
