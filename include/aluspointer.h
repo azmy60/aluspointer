@@ -58,6 +58,7 @@ namespace aluspointer
     };
     std::vector<window_client_t> update_window_list();
     void focus_window(uint8_t id);
+    void minimize_window(uint8_t id);
     const std::vector<unsigned char> get_window_image(uint8_t id);
 }
 

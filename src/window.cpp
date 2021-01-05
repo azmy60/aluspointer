@@ -170,10 +170,16 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
         uint32_t val[] = { XCB_STACK_MODE_ABOVE };
         
         xcb_configure_window(connection, wid, XCB_CONFIG_WINDOW_STACK_MODE, val);
-
+        
         xcb_set_input_focus(connection, XCB_INPUT_FOCUS_POINTER_ROOT, wid, 
             XCB_CURRENT_TIME);
         
+        flush();
+    }
+    
+    void minimize_wid(xcb_window_t wid)
+    {
+        // TODO
         flush();
     }
     
@@ -182,6 +188,17 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
         try
         {
             focus_wid(window_info_mapper.at(id)->wid);
+        }
+        catch(const std::out_of_range &oor)
+        {
+        }
+    }
+    
+    void minimize_window(uint8_t id)
+    {
+        try
+        {
+            minimize_wid(window_info_mapper.at(id)->wid);
         }
         catch(const std::out_of_range &oor)
         {
