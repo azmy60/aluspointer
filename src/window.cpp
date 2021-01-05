@@ -8,8 +8,9 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
 {
     xcb_atom_t _NET_CLIENT_LIST, _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_NORMAL;
     
+    template <typename T>
     int get_atom_value(xcb_window_t wid, xcb_atom_t property, xcb_atom_t value, 
-    uint32_t long_len, void **data)
+    uint32_t long_len, T &data)
     {
         auto cookie = xcb_get_property(connection, 0, wid, property, 
                                         value, 0, 100);
@@ -18,7 +19,7 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
         if(!reply)
             return 0;
         
-        *data = xcb_get_property_value(reply);
+        data = (T)xcb_get_property_value(reply);
 
         int len = xcb_get_property_value_length(reply);
         
@@ -30,8 +31,8 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
     inline std::string get_name(xcb_window_t wid)
     {
         char *c_name;
-        int len = get_atom_value(wid, XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 100, 
-                                (void**)&c_name);
+        int len = get_atom_value<char*>(wid, XCB_ATOM_WM_NAME, XCB_ATOM_STRING,
+            100, c_name);
         if(!len)
         {
             // TODO get the atom with COMPOUND_TEXT value type
