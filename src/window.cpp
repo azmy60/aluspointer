@@ -98,58 +98,34 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
         return bitmap_buffer_temp;
     }
     
-    inline xcb_get_property_reply_t *get_window_property_reply
-        (xcb_window_t wid, xcb_atom_t property, xcb_atom_t type)
-    {
-        return xcb_get_property_reply(connection, 
-            xcb_get_property(connection, 0, wid, property, type, 0, 100), 
-            nullptr);
-    }
-    
     bool check_window(xcb_window_t wid, uint8_t map_state)
     {
-        auto win_type_reply_scoped = reply_ptr<xcb_get_property_reply_t>
-            (get_window_property_reply(wid, _NET_WM_WINDOW_TYPE, XCB_ATOM_ATOM));
+        xcb_atom_t *win_type = nullptr;
         
-        auto win_type = (xcb_atom_t *)xcb_get_property_value(win_type_reply_scoped.get());
+        auto len = get_atom_value<xcb_atom_t *>(wid, _NET_WM_WINDOW_TYPE, XCB_ATOM_ATOM, 100, win_type);
         
-        return  map_state == XCB_MAP_STATE_VIEWABLE && 
+//        std::cout << (int)wid << " len: " << len << ' ' << win_type << std::endl;
+        
+        return map_state == XCB_MAP_STATE_VIEWABLE && 
                 (win_type && *win_type == _NET_WM_WINDOW_TYPE_NORMAL);
     }
     
     // TODO not thread-safe
     std::vector<window_client_t> update_window_list()
     {
-        // This is just my unreliable theory:
-        // In order to -get all the windows- that exists on screen, we find the root
-        // window from a screen first. The root window have a bunch of window
-        // children. These children are what we are going to use.
-        //
-        // We iterate through the children, and then check the map_state if it's
-        // viewable or not. If it is, then that is the window on screen.
-        // 
-        // I found 2 ways to get the list of these happy little windows.
-        //
-        // The first one is with xcb_query_tree_children. Using this in my laptop
-        // gave me a list of about a hundred windows (or maybe even more).
-        // 
-        // The other way is by getting a specific value from the properties of a 
-        // window (in this case is the root window). With this, i was given 2-3x
-        // smaller list of windows. You still have to filter it, but with less
-        // itteration, which is better.
-
         std::vector<window_client_t> win_client_list; // TODO store this client list locally and return const to the user 
         
         window_info_mapper.clear();
-
-        auto prop_reply = get_window_property_reply(screen->root, _NET_CLIENT_LIST, XCB_ATOM_WINDOW);
-        if(!prop_reply)
+        
+        xcb_window_t *window_list = nullptr;
+        
+        auto window_list_len = get_atom_value<xcb_window_t *>(screen->root, 
+            _NET_CLIENT_LIST, XCB_ATOM_WINDOW, UINT32_MAX, window_list);
+            
+        std::cout << window_list_len << std::endl;
+        
+        if(!window_list)
             return win_client_list;
-        
-        auto prop_reply_scoped = reply_ptr<xcb_get_property_reply_t>(prop_reply);
-        
-        auto window_list_len = xcb_get_property_value_length(prop_reply);
-        xcb_window_t *window_list = (xcb_window_t *)xcb_get_property_value(prop_reply);
         
         uint8_t id = 0;
         for(int i = 0; i < window_list_len; i++)
