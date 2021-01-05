@@ -102,9 +102,8 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
     {
         xcb_atom_t *win_type = nullptr;
         
-        auto len = get_atom_value<xcb_atom_t *>(wid, _NET_WM_WINDOW_TYPE, XCB_ATOM_ATOM, 100, win_type);
-        
-//        std::cout << (int)wid << " len: " << len << ' ' << win_type << std::endl;
+        auto len = get_atom_value<xcb_atom_t *>(wid, _NET_WM_WINDOW_TYPE, 
+            XCB_ATOM_ATOM, UINT32_MAX, win_type);
         
         return map_state == XCB_MAP_STATE_VIEWABLE && 
                 (win_type && *win_type == _NET_WM_WINDOW_TYPE_NORMAL);
