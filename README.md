@@ -1,5 +1,5 @@
 # aluspointer
-aluspointer is an input simulation library written in c++ based on xcb library. It's originally made for a dependency of my other project [Mobile Cursor](https://github.com/azmy60/mobile-cursor), and currently, it only supports linux platform.
+aluspointer is an input simulation library written in c++ based on Xlib library. It's originally made for a dependency of my other project [Mobile Cursor](https://github.com/azmy60/mobile-cursor), and currently, it only supports linux platform.
 
 ### Features
 - Basic mouse and keyboard tasks (clicking, typing, etc.)
