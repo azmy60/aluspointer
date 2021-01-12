@@ -7,7 +7,7 @@ aluspointer is an input simulation library written in c++ based on xcb library. 
 - Window manipulation (focus & capture image)
 
 ### Dependencies
-- xcb, xcb-xtest, and xcb-keysyms
+- Xlib
 - tinyutf8 (https://github.com/DuffsDevice/tiny-utf8)
 - cairo
 
