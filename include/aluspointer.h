@@ -1,19 +1,20 @@
 #ifndef ALUSPOINTER_H
 #define ALUSPOINTER_H
 
-#include <xcb/xcb.h>
-#include <xcb/xcb_keysyms.h>
+#include <X11/Xutil.h>
 #include <tinyutf8/tinyutf8.h>
 #include <string>
 #include <vector>
+#include <thread>
+#include <functional>
 
 namespace aluspointer
 {
     enum mouse_btn_type
     {
-        MOUSE_LEFT          = XCB_BUTTON_INDEX_1,
-        MOUSE_RIGHT         = XCB_BUTTON_INDEX_3,
-        MOUSE_MIDDLE        = XCB_BUTTON_INDEX_2
+        MOUSE_LEFT          = Button1,
+        MOUSE_RIGHT         = Button2,
+        MOUSE_MIDDLE        = Button3
     };
     
     enum flags_type
@@ -24,12 +25,12 @@ namespace aluspointer
         MOD_CTRL            = 0x04
     };
     
-    enum key_type : xcb_keysym_t
+    enum key_type : KeySym
     {
-        XK_Left             = 0xff51,
-        XK_Up               = 0xff52,
-        XK_Right            = 0xff53,
-        XK_Down             = 0xff54
+        Key_Left             = XK_Left,
+        Key_Up               = XK_Up,
+        Key_Right            = XK_Right,
+        Key_Down             = XK_Down
     };
     
     // Call this before everything
@@ -59,7 +60,10 @@ namespace aluspointer
     std::vector<window_client_t> update_window_list();
     void focus_window(uint8_t id);
     void minimize_window(uint8_t id);
+    void toggle_window(uint8_t id);
     const std::vector<unsigned char> get_window_image(uint8_t id);
+    void start_listen_to_updated_windows(std::function<void(const int)> callback);
+    void listen_to_window(int id);
 }
 
 #endif // ALUSPOINTER_H

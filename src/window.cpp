@@ -1,65 +1,113 @@
 #include "aluspointer.h"
 #include "common.h"
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
 #include <unordered_map>
 #include <stdexcept>
-#include <cairo-xcb.h>
+#include <cairo-xlib.h>
+#include <iostream>
+#include <thread>
+#include <algorithm>
+#include <mutex>
+#include <condition_variable>
 
 namespace aluspointer // FIX free() invalid pointer when program terminates 
 {
-    xcb_atom_t _NET_CLIENT_LIST, _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_NORMAL;
+    Atom _NET_CLIENT_LIST, _NET_WM_WINDOW_TYPE_NORMAL, _NET_ACTIVE_WINDOW;
+//        ,_NET_WM_STATE, _NET_WM_STATE_HIDDEN, ;
+  
+    Atom _NET_WM_WINDOW_TYPE;
     
-    template <typename T>
-    int get_atom_value(xcb_window_t wid, xcb_atom_t property, xcb_atom_t type, 
-    uint32_t long_len, T &data)
+    const unsigned char *get_window_property(Window win, Atom atom, long &length,
+        Atom &type, int &size)
     {
-        auto cookie = xcb_get_property(connection, 0, wid, property, 
-                                        type, 0, long_len);
-        auto reply = xcb_get_property_reply(connection, cookie, nullptr);
-
-        if(!reply)
-            return 0;
+        Atom actual_type;
+        int actual_format;
+        ulong n_items, bytes_after;//, n_bytes;
+        unsigned char *prop;
         
-        data = (T)xcb_get_property_value(reply);
-
-        int len = xcb_get_property_value_length(reply);
+        auto status = XGetWindowProperty(display_, win, atom, 0, ~0, false, 
+            AnyPropertyType, &actual_type, &actual_format, &n_items,
+            &bytes_after, &prop);
         
-        free(reply);
-        
-        return len;
-    }
-    
-    inline std::string get_name(xcb_window_t wid)
-    {
-        char *c_name;
-        int len = get_atom_value<char*>(wid, XCB_ATOM_WM_NAME, XCB_ATOM_STRING,
-            100, c_name);
-        if(!len)
+        if(status == BadWindow)
         {
-            // TODO get the atom with COMPOUND_TEXT value type
+            std::cerr << "Window id " << win << "does not exists!" <<std::endl;
+            return nullptr;
         }
-        return std::string(c_name, len);
+        else if(status != Success)
+        {
+            std::cerr << "XGetWindowProperty failed!" <<std::endl;
+            return nullptr;
+        }
+        
+        length = n_items;
+        size = actual_format;
+        type = actual_type;
+        
+        return prop;
     }
     
-    xcb_visualtype_t *lookup_visual(xcb_visualid_t visual_id)
+    const std::string get_name(Window win)
     {
-        auto depth_iter = xcb_screen_allowed_depths_iterator(screen);
-        for(; depth_iter.rem; xcb_depth_next(&depth_iter)){
-            auto visual_iter = xcb_depth_visuals_iterator(depth_iter.data);
-            for(; visual_iter.rem; xcb_visualtype_next(&visual_iter))
-                if(visual_id == visual_iter.data->visual_id)
-                    return visual_iter.data;
-        }
-        return nullptr;
+        long length;
+        Atom type;
+        int size;
+        char *name = (char *)get_window_property(win, XA_WM_NAME, length, type, size);
+        return std::string(name);
     }
     
     struct window_info_t
     {
-        xcb_window_t wid;
+        Window win;
         std::string name;
-        xcb_visualtype_t *visual_type;
+        Visual *visual;
     };
     
     std::unordered_map<uint8_t, std::shared_ptr<window_info_t>> window_info_mapper;
+    
+    int id_to_listen;
+    Window win_to_listen;
+    bool start_listening;
+    std::mutex m;
+    std::condition_variable cv;
+    
+    // Blocking function
+    void start_listen_to_updated_windows(std::function<void(const int)> callback)
+    {
+        XEvent event;
+        while(true)
+        {
+            std::unique_lock<std::mutex> lk(m);
+            cv.wait(lk, []{ return start_listening; });
+            
+            XSelectInput(display_, win_to_listen, FocusChangeMask);
+            
+            XNextEvent(display_, &event);
+            
+            if(event.xfocus.type == FocusOut)
+            {
+                std::cout << "focus out = " << (event.xfocus.type == FocusOut) << std::endl;
+                callback(id_to_listen);
+            }
+            
+            start_listening = false;
+            
+            lk.unlock();
+            cv.notify_one();
+        }
+    }
+    
+    void listen_to_window(int id)
+    {
+        {
+            std::lock_guard<std::mutex> lk(m);
+            id_to_listen = id;
+            win_to_listen = window_info_mapper[id]->win;
+            start_listening = true;            
+        }
+        cv.notify_one();
+    }
     
     // Reserves 170kb of memory
     std::vector<unsigned char> bitmap_buffer_temp(1024 * 170); 
@@ -78,43 +126,58 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
         bitmap_buffer_temp.clear();
         
         auto info = window_info_mapper[id];
-        int absx, absy, width, height, x, y;
-
-        auto geo_cookie = xcb_get_geometry(connection, info->wid);
-        auto geo_reply = reply_ptr<xcb_get_geometry_reply_t>
-            (xcb_get_geometry_reply(connection, geo_cookie, nullptr));
+        int x_tmp, y_tmp;
+        unsigned int width, height, border_width_tmp, depth_tmp;
+        Window root_tmp;
         
-        if(!geo_reply)
-            return bitmap_buffer_temp;
+        auto status = XGetGeometry(display_, info->win, &root_tmp, &x_tmp, 
+            &y_tmp, &width, &height, &border_width_tmp, &depth_tmp);
+        
+        if(!status)
+            return bitmap_buffer_temp; // empty
             
-        auto surface = cairo_xcb_surface_create(connection, info->wid, 
-            info->visual_type, geo_reply->width, geo_reply->height);
+        auto surface = cairo_xlib_surface_create(display_, info->win, 
+            info->visual, width, height);
         
-        auto status = cairo_surface_write_to_png_stream(surface, write_data_png, 
-            &bitmap_buffer_temp); // TODO use external library for the write
+        cairo_surface_write_to_png_stream(surface, write_data_png, 
+            &bitmap_buffer_temp); // TODO use external library for writing
         
         cairo_surface_destroy(surface);
         
         return bitmap_buffer_temp;
     }
     
-    inline xcb_get_property_reply_t *get_window_property_reply
-        (xcb_window_t wid, xcb_atom_t property, xcb_atom_t type)
+    std::unique_ptr<Window> get_window_list(long &len)
     {
-        return xcb_get_property_reply(connection, 
-            xcb_get_property(connection, 0, wid, property, type, 0, 100), 
-            nullptr);
+        long length;
+        int size;
+        Atom type;
+        Window *window_list = (Window *)get_window_property(root_, 
+            _NET_CLIENT_LIST, length, type, size);
+        len = length;
+        return std::unique_ptr<Window>(window_list);
     }
     
-    bool check_window(xcb_window_t wid, uint8_t map_state)
+    bool check_window(Window win, uint8_t map_state)
     {
-        auto win_type_reply_scoped = reply_ptr<xcb_get_property_reply_t>
-            (get_window_property_reply(wid, _NET_WM_WINDOW_TYPE, XCB_ATOM_ATOM));
+        Atom actual_type;
+        int actual_format;
+        ulong n_items, bytes_after;
+        unsigned char *prop;
         
-        auto win_type = (xcb_atom_t *)xcb_get_property_value(win_type_reply_scoped.get());
+        auto status = XGetWindowProperty(display_, win, _NET_WM_WINDOW_TYPE, 0, 
+            1024, false, XA_ATOM, &actual_type, &actual_format, &n_items, 
+            &bytes_after, &prop);
         
-        return  map_state == XCB_MAP_STATE_VIEWABLE && 
-                (win_type && *win_type == _NET_WM_WINDOW_TYPE_NORMAL);
+        if(status != Success && actual_format != 32)
+            return false;
+        
+        auto prop_scoped = x_ptr<unsigned char>(prop);
+        
+        Atom *win_type = (Atom *)(prop);
+        
+        return  map_state == IsViewable && 
+                *win_type == _NET_WM_WINDOW_TYPE_NORMAL;
     }
     
     // TODO not thread-safe
@@ -124,27 +187,21 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
         
         window_info_mapper.clear();
         
-        auto prop_reply = get_window_property_reply(screen->root, _NET_CLIENT_LIST, XCB_ATOM_WINDOW);
-        if(!prop_reply)
-            return win_client_list;
-        
-        auto prop_reply_scoped = reply_ptr<xcb_get_property_reply_t>(prop_reply);
-        
-        auto window_list_len = xcb_get_property_value_length(prop_reply);
-        xcb_window_t *window_list = (xcb_window_t *)xcb_get_property_value(prop_reply);
+        long window_list_len;
+        auto window_list_scoped = get_window_list(window_list_len);
+        Window *window_list = window_list_scoped.get();
         
         uint8_t id = 0;
         for(int i = 0; i < window_list_len; i++)
         {
-            if(window_list[i] == 0)
+            if(!window_list[i])
                 continue;
             try
             {
-                auto attr_cookie = xcb_get_window_attributes(connection, window_list[i]);
-                auto attr_reply = reply_ptr<xcb_get_window_attributes_reply_t>
-                    (xcb_get_window_attributes_reply(connection, attr_cookie, nullptr));
-                    
-                if(attr_reply && check_window(window_list[i], attr_reply->map_state))
+                XWindowAttributes attr;
+                auto status = XGetWindowAttributes(display_, window_list[i], &attr);
+                
+                if(status && check_window(window_list[i], attr.map_state))
                 {
                     auto name = get_name(window_list[i]);
                     
@@ -153,9 +210,9 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
                     
                     auto info = std::make_shared<window_info_t>();
                     
-                    info->name        = name;
-                    info->wid         = window_list[i];
-                    info->visual_type = lookup_visual(attr_reply->visual);
+                    info->name      = name;
+                    info->win       = window_list[i];
+                    info->visual    = attr.visual;
                     
                     window_info_mapper[id] = info;
                     
@@ -167,33 +224,58 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
             }
         }
         
+//        std::cout << win_client_list.size() << std::endl;
+        
         return win_client_list;
     }
     
-    // https://stackoverflow.com/a/54382231/10012118
-    void focus_wid(xcb_window_t wid)
+    const bool is_window_active(Window win)
     {
-        uint32_t val[] = { XCB_STACK_MODE_ABOVE };
-        
-        xcb_configure_window(connection, wid, XCB_CONFIG_WINDOW_STACK_MODE, val);
-        
-        xcb_set_input_focus(connection, XCB_INPUT_FOCUS_POINTER_ROOT, wid, 
-            XCB_CURRENT_TIME);
+        long length;
+        int size;
+        Atom type;
+        Window *active_win = (Window *)get_window_property(root_, 
+            _NET_ACTIVE_WINDOW, length, type, size);
+//        std::cout << (*active_win == win) << std::endl;
+        return (*active_win == win);
+    }
+    
+    // https://stackoverflow.com/a/30256233/10012118
+    void focus_win(Window win)
+    {
+        XClientMessageEvent ev;
+        ev.type = ClientMessage;
+        ev.window = win;
+        ev.message_type = _NET_ACTIVE_WINDOW;
+        ev.format = 32;
+        ev.data.l[0] = 1;
+        ev.data.l[1] = CurrentTime;
+        ev.data.l[2] = ev.data.l[3] = ev.data.l[4] = 0;
+        XSendEvent(display_, root_, false,
+            SubstructureRedirectMask | SubstructureNotifyMask, (XEvent *) &ev);
         
         flush();
     }
     
-    void minimize_wid(xcb_window_t wid)
+    void minimize_win(Window win)
     {
-        // TODO
+        XIconifyWindow(display_, win, screen_number);
         flush();
+    }
+    
+    void toggle_win(Window win)
+    {
+        if(is_window_active(win))
+            minimize_win(win);
+        else
+            focus_win(win);
     }
     
     void focus_window(uint8_t id)
     {
         try
         {
-            focus_wid(window_info_mapper.at(id)->wid);
+            focus_win(window_info_mapper.at(id)->win);
         }
         catch(const std::out_of_range &oor)
         {
@@ -204,7 +286,18 @@ namespace aluspointer // FIX free() invalid pointer when program terminates
     {
         try
         {
-            minimize_wid(window_info_mapper.at(id)->wid);
+            minimize_win(window_info_mapper.at(id)->win);
+        }
+        catch(const std::out_of_range &oor)
+        {
+        }
+    }
+    
+    void toggle_window(uint8_t id)
+    {
+        try
+        {
+            toggle_win(window_info_mapper.at(id)->win);
         }
         catch(const std::out_of_range &oor)
         {
