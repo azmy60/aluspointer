@@ -27,7 +27,7 @@ int main()
   aluspointer::click(MOUSE_LEFT);
   
   // Type UTF-8 string
-  aluspointer::type_string(u8"I type you these emojis! 🔥🔥💯💯😂");
+  aluspointer::type_string(u8"you cant live without emojis.. 🔥🔥💯💯😂");
   
   // Tap ASCII character
   aluspointer::tap_key(15); // ASCII code for return
